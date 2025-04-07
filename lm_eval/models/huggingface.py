@@ -583,15 +583,45 @@ class HFLM(TemplateLM):
                         model_kwargs["bnb_4bit_compute_dtype"] = get_dtype(
                             model_kwargs["bnb_4bit_compute_dtype"]
                         )
+            if "model_class" in model_kwargs:
+                # カスタムクラスのインポート
+                model_class_str = model_kwargs.pop("model_class")
+                module_path, class_name = model_class_str.rsplit(".", 1)
+                custom_model_class = getattr(__import__(module_path, fromlist=[class_name]), class_name)
+                
+                # 必要なカスタム引数を取得（uniform_layer_idx, uniform_head_idx など）
+                uniform_layer_idx = model_kwargs.pop("uniform_layer_idx", None)
+                uniform_head_idx = model_kwargs.pop("uniform_head_idx", None)
+                
+                # ここで、カスタムの from_pretrained を呼ぶ
+                self._model = custom_model_class.from_pretrained(
+                    pretrained,
+                    revision=revision,
+                    torch_dtype=get_dtype(dtype),
+                    trust_remote_code=trust_remote_code,
+                    uniform_layer_idx=uniform_layer_idx,
+                    uniform_head_idx=uniform_head_idx,
+                    **model_kwargs,
+                )
+            else:
+                # 既存のロジック
+                self._model = self.AUTO_MODEL_CLASS.from_pretrained(
+                    pretrained,
+                    revision=revision,
+                    torch_dtype=get_dtype(dtype),
+                    trust_remote_code=trust_remote_code,
+                    gguf_file=gguf_file,
+                    **model_kwargs,
+                )
 
-            self._model = self.AUTO_MODEL_CLASS.from_pretrained(
-                pretrained,
-                revision=revision,
-                torch_dtype=get_dtype(dtype),
-                trust_remote_code=trust_remote_code,
-                gguf_file=gguf_file,
-                **model_kwargs,
-            )
+            # self._model = self.AUTO_MODEL_CLASS.from_pretrained(
+            #     pretrained,
+            #     revision=revision,
+            #     torch_dtype=get_dtype(dtype),
+            #     trust_remote_code=trust_remote_code,
+            #     gguf_file=gguf_file,
+            #     **model_kwargs,
+            # )
         else:
             if autogptq and gptqmodel:
                 raise ValueError(
