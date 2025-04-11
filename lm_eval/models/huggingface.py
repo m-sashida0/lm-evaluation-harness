@@ -168,19 +168,18 @@ class HFLM(TemplateLM):
             # TODO: update this to be less of a hack once subfolder is fixed in HF
             revision = revision + ("/" + subfolder if subfolder is not None else "")
 
+            print(f"{__file__}, {self.__class__.__name__}.__init__() function before _get_config, revision: {revision}, layer: {fix_layer}, head: {fix_head}")
             self._get_config(
                 pretrained,
                 revision=revision,
                 trust_remote_code=trust_remote_code,
                 gguf_file=gguf_file,
+                fix_layer=fix_layer,
+                fix_head=fix_head,
             )
             self.fix_layer = fix_layer
             self.fix_head = fix_head
-            # fix_layer, fix_head が数値の場合はリストに変換して config にセットする
-            if fix_layer is not None:
-                self._config.fix_layer = fix_layer if isinstance(fix_layer, list) else [fix_layer]
-            if fix_head is not None:
-                self._config.fix_head = fix_head if isinstance(fix_head, list) else [fix_head]
+            print(f"{__file__}, {self.__class__.__name__}.__init__() function, fix_layer: {self.fix_layer}, fix_head: {self.fix_head}")
 
             # determine which of 'causal' and 'seq2seq' backends to use for HF models
         self._get_backend(
@@ -527,13 +526,19 @@ class HFLM(TemplateLM):
         revision: str = "main",
         trust_remote_code: bool = False,
         gguf_file: Optional[str] = None,
+        fix_layer: Optional[Union[int, List[int]]] = None,
+        fix_head: Optional[Union[int, List[int]]]= None,
     ) -> None:
         """Return the model config for HuggingFace models"""
+
+        print(f"{__file__}, {self.__class__.__name__}._get_config() function,fix_layer: {fix_layer}, fix_head: {fix_head}")
         self._config = transformers.AutoConfig.from_pretrained(
             pretrained,
             revision=revision,
             trust_remote_code=trust_remote_code,
             gguf_file=gguf_file,
+            fix_layer=fix_layer,
+            fix_head=fix_head,
         )
 
     def _create_model(
