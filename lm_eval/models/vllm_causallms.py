@@ -113,18 +113,19 @@ class VLLM(TemplateLM):
             self.batch_size = "auto"
             eval_logger.info("Manual batching is not compatible with data parallelism.")
 
-            from transformers import AutoConfig
+        from transformers import AutoConfig
 
-            self._config = AutoConfig.from_pretrained(
-                pretrained, trust_remote_code=trust_remote_code, revision=revision
-            )
+        self._config = AutoConfig.from_pretrained(
+            pretrained, trust_remote_code=trust_remote_code, revision=revision
+        )
         self.tokenizer = get_tokenizer(
             tokenizer if tokenizer else pretrained,
             tokenizer_mode=tokenizer_mode,
             trust_remote_code=trust_remote_code,
             revision=tokenizer_revision,
+            add_bos_token=add_bos_token,
         )
-        self.tokenizer = configure_pad_token(self.tokenizer)
+        self.tokenizer = configure_pad_token(self.tokenizer, model_config=self._config)
         self.add_bos_token = add_bos_token
         if "gemma" in pretrained.lower():
             self.add_bos_token = True
@@ -243,13 +244,13 @@ class VLLM(TemplateLM):
                 temperature=0, prompt_logprobs=1, max_tokens=1, detokenize=False
             )
         if self.data_parallel_size > 1:
-            # vLLM hangs if tensor_parallel > 1 and resources are set in ray.remote
+            # vLLM hangs if resources are set in ray.remote
             # also seems to only work with decorator and not with ray.remote() fn
             # see https://github.com/vllm-project/vllm/issues/973
-            @ray.remote(num_gpus=1 if self.tensor_parallel_size == 1 else None)
+            @ray.remote
             def run_inference_one_model(
                 model_args: dict,
-                sampling_params,
+                sampling_params: SamplingParams,
                 requests: List[List[int]],
                 lora_request: LoRARequest,
             ):
@@ -558,6 +559,7 @@ class VLLM(TemplateLM):
     @staticmethod
     def modify_gen_kwargs(kwargs: dict) -> dict:
         # sampling_params
+        kwargs["temperature"] = kwargs.get("temperature", 0.0)
         do_sample = kwargs.pop("do_sample", None)
         if do_sample is False and "temperature" not in kwargs:
             eval_logger.debug(
