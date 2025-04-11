@@ -262,6 +262,23 @@ def setup_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Confirm that you understand the risks of running unsafe code for tasks that require it",
     )
+    def str_to_int(value):
+        try:
+            return int(value)
+        except ValueError:
+            raise argparse.ArgumentTypeError(f"Invalid integer value: {value}")
+    parser.add_argument(
+        "--fix_layer",
+        type=str_to_int,
+        default=None,
+        help="Fix the layer of the model to be evaluated. This is useful for evaluating models with different layers.",
+    )
+    parser.add_argument(
+        "--fix_head",
+        type=str_to_int,
+        default=None,
+        help="Fix the head of the model to be evaluated. This is useful for evaluating models with different heads.",
+    )
     return parser
 
 
@@ -410,6 +427,8 @@ def cli_evaluate(args: Union[argparse.Namespace, None] = None) -> None:
         torch_random_seed=args.seed[2],
         fewshot_random_seed=args.seed[3],
         confirm_run_unsafe_code=args.confirm_run_unsafe_code,
+        fix_layer=args.fix_layer,
+        fix_head=args.fix_head,
         **request_caching_args,
     )
 
@@ -464,4 +483,5 @@ def cli_evaluate(args: Union[argparse.Namespace, None] = None) -> None:
 
 
 if __name__ == "__main__":
+    print("Running lm-eval as a script")
     cli_evaluate()

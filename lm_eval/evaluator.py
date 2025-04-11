@@ -48,6 +48,8 @@ eval_logger = logging.getLogger(__name__)
 @positional_deprecated
 def simple_evaluate(
     model,
+    fix_layer,
+    fix_head,
     model_args: Optional[Union[str, dict]] = None,
     tasks: Optional[List[Union[str, dict, object]]] = None,
     num_fewshot: Optional[int] = None,
@@ -76,6 +78,8 @@ def simple_evaluate(
     torch_random_seed: int = 1234,
     fewshot_random_seed: int = 1234,
     confirm_run_unsafe_code: bool = False,
+    # fix_layer: Optional[Union[str, List[str]]] = None,
+    # fix_head: Optional[Union[str, List[str]]] = None,
 ):
     """Instantiate and evaluate a model on a list of tasks.
 
@@ -188,7 +192,6 @@ def simple_evaluate(
         if model_args is None:
             eval_logger.warning("model_args not specified. Using defaults.")
             model_args = ""
-
         if isinstance(model_args, dict):
             eval_logger.info(
                 f"Initializing {model} model, with arguments: {model_args}"
@@ -199,10 +202,15 @@ def simple_evaluate(
                     "batch_size": batch_size,
                     "max_batch_size": max_batch_size,
                     "device": device,
+                    "fix_layer": fix_layer,
+                    "fix_head": fix_head,
                 },
             )
 
         else:
+            #logで見やすいようにここのプロセスの場所、関数名とかと、fix_layer、fix_headの位置をprintする.例print(f"lm_eval/evaluator.py, simple_evaluate() function, model_args: {model_args}, fix_layer: {fix_layer}, fix_head: {fix_head}")
+            print(f"lm_eval/evaluator.py, simple_evaluate() function, model_args: {model_args}, fix_layer: {fix_layer}, fix_head: {fix_head}")
+
             eval_logger.info(
                 f"Initializing {model} model, with arguments: {simple_parse_args_string(model_args)}"
             )
@@ -212,6 +220,8 @@ def simple_evaluate(
                     "batch_size": batch_size,
                     "max_batch_size": max_batch_size,
                     "device": device,
+                    "fix_layer": fix_layer,
+                    "fix_head": fix_head,
                 },
             )
     else:

@@ -30,17 +30,15 @@ def register_model(*names):
 
     return decorate
 
+
 def get_model(model_name):
-    if model_name not in MODEL_REGISTRY:
-        # 遅延インポートして登録する
-        if model_name == "xglm_custom.custom_xglm.CustomXGLMForCausalLM":
-            from xglm_custom.custom_xglm import CustomXGLMForCausalLM
-            MODEL_REGISTRY[model_name] = CustomXGLMForCausalLM
-        else:
-            raise ValueError(
-                f"Attempted to load model '{model_name}', but no model for this name found! Supported model names: {', '.join(MODEL_REGISTRY.keys())}"
-            )
-    return MODEL_REGISTRY[model_name]
+    try:
+        return MODEL_REGISTRY[model_name]
+    except KeyError:
+        raise ValueError(
+            f"Attempted to load model '{model_name}', but no model for this name found! Supported model names: {', '.join(MODEL_REGISTRY.keys())}"
+        )
+    
 
 TASK_REGISTRY = {}
 GROUP_REGISTRY = {}

@@ -57,6 +57,8 @@ class HFLM(TemplateLM):
 
     def __init__(
         self,
+        fix_layer,
+        fix_head,
         pretrained: Union[str, transformers.PreTrainedModel],
         backend: Literal["default", "causal", "seq2seq"] = "default",
         # override whether the model should be treated as decoder-only (causal) or encoder-decoder (seq2seq)
@@ -92,6 +94,8 @@ class HFLM(TemplateLM):
         autogptq: Optional[Union[bool, str]] = False,
         gptqmodel: Optional[bool] = False,
         gguf_file: Optional[str] = None,
+        # fix_layer: Optional[int] = None,
+        # fix_head: Optional[int] = None,
         **kwargs,
     ) -> None:
         super().__init__()
@@ -170,6 +174,13 @@ class HFLM(TemplateLM):
                 trust_remote_code=trust_remote_code,
                 gguf_file=gguf_file,
             )
+            self.fix_layer = fix_layer
+            self.fix_head = fix_head
+            # fix_layer, fix_head が数値の場合はリストに変換して config にセットする
+            if fix_layer is not None:
+                self._config.fix_layer = fix_layer if isinstance(fix_layer, list) else [fix_layer]
+            if fix_head is not None:
+                self._config.fix_head = fix_head if isinstance(fix_head, list) else [fix_head]
 
             # determine which of 'causal' and 'seq2seq' backends to use for HF models
         self._get_backend(
@@ -185,7 +196,6 @@ class HFLM(TemplateLM):
             use_fast_tokenizer=use_fast_tokenizer,
             gguf_file=gguf_file,
         )
-
         # if we passed `pretrained` as a string, initialize our model now
         if isinstance(pretrained, str):
             self._create_model(
@@ -592,6 +602,7 @@ class HFLM(TemplateLM):
                 # 必要なカスタム引数を取得（uniform_layer_idx, uniform_head_idx など）
                 uniform_layer_idx = model_kwargs.pop("uniform_layer_idx", None)
                 uniform_head_idx = model_kwargs.pop("uniform_head_idx", None)
+                print(f"hugging uniform_layer_idx: {uniform_layer_idx}, uniform_head_idx: {uniform_head_idx}")
                 
                 # ここで、カスタムの from_pretrained を呼ぶ
                 self._model = custom_model_class.from_pretrained(
@@ -611,17 +622,10 @@ class HFLM(TemplateLM):
                     torch_dtype=get_dtype(dtype),
                     trust_remote_code=trust_remote_code,
                     gguf_file=gguf_file,
+                    config=self._config,
                     **model_kwargs,
                 )
 
-            # self._model = self.AUTO_MODEL_CLASS.from_pretrained(
-            #     pretrained,
-            #     revision=revision,
-            #     torch_dtype=get_dtype(dtype),
-            #     trust_remote_code=trust_remote_code,
-            #     gguf_file=gguf_file,
-            #     **model_kwargs,
-            # )
         else:
             if autogptq and gptqmodel:
                 raise ValueError(
@@ -925,12 +929,15 @@ class HFLM(TemplateLM):
         stopping_criteria = stop_sequences_criteria(
             self.tokenizer, stop, context.shape[1], context.shape[0]
         )
+
         return self.model.generate(
             input_ids=context,
             max_length=max_length,
             stopping_criteria=stopping_criteria,
             pad_token_id=self.tokenizer.pad_token_id,
             use_cache=True,
+            fix_layer=self.fix_layer,
+            fix_head=self.fix_head,
             **generation_kwargs,
         )
 
